@@ -110,8 +110,8 @@ function buildLevel(idx) {
         break;
       }
       case 'spiky':
-        spawn('spiky', c + 3);
-        c += 7;
+        spawn('spiky', c + 7);
+        c += 11;
         break;
       case 'coins': {
         const n = ri(4, 7), row = ri(10, 12);
@@ -120,14 +120,14 @@ function buildLevel(idx) {
         break;
       }
       case 'flyer':
-        spawn('flyer', c + 4, { y: ri(9, 11) * T });
+        spawn('flyer', c + 4, { y: ri(8, 10) * T });
         c += 7;
         break;
       case 'plat': {
         const w = ri(6, 8), row = ri(11, 12);
         hole(c, w);
         for (let i = 2; i <= w - 3; i++) { set(c + i, row, i % 3 === 0 ? QCOIN : HARD); set(c + i, row - 2, COIN); }
-        c += w + ri(3, 5);
+        c += w + ri(7, 9);
         break;
       }
     }

@@ -12,10 +12,14 @@
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   body { display: flex; align-items: center; justify-content: center; touch-action: none;
          -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #rotate { display: none; position: fixed; left: 0; right: 0; top: 12%; text-align: center; color: #ffd23f;
+            font: 12px/1.8 "Press Start 2P", monospace; pointer-events: none; }
+  @media (orientation: portrait) and (max-width: 700px) { #rotate { display: block; } }
   canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #5c94fc; }
 </style>
 </head>
 <body>
+<div id="rotate">📱↻ Обърни телефона<br>хоризонтално</div>
 <canvas id="game" width="960" height="544"></canvas>
 <script src="js/audio.js"></script>
 <script src="js/level.js"></script>

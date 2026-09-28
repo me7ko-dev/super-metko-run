@@ -49,7 +49,7 @@ function makePlayer(x) {
 function makeEntity(s) {
   switch (s.type) {
     case 'walker': return { type: 'walker', x: s.x + 2, y: GROUND * T - 28, w: 28, h: 28, vx: -60, vy: 0 };
-    case 'spiky': return { type: 'spiky', x: s.x + 2, y: GROUND * T - 26, w: 28, h: 26, vx: -50, vy: 0 };
+    case 'spiky': return { type: 'spiky', x: s.x + 2, y: GROUND * T - 26, w: 28, h: 26, vx: -40, vy: 0 };
     case 'flyer': return { type: 'flyer', x: s.x, y: s.y, baseY: s.y, w: 30, h: 24, vx: -70, vy: 0, t: 0 };
     case 'plant': return { type: 'plant', x: s.x - 12, y: s.y, pipeTop: s.y, w: 24, h: 40, vx: 0, vy: 0, t: 0, o: 0 };
     case 'checkpoint': return { type: 'checkpoint', x: s.x, y: GROUND * T - 3 * T, w: 8, h: 3 * T, reached: false };
@@ -158,7 +158,7 @@ function updatePlayer(G, dt, input) {
 function updateEnemies(G, dt) {
   const L = G.L, p = G.p;
   for (const e of G.ents) {
-    if (!e.active) { if (e.x < G.camX + VIEW_W + 48) e.active = true; else continue; }
+    if (!e.active) { if (e.x < G.camX + VIEW_W + 8) e.active = true; else continue; }
     if (e.flip) { e.vy += GRAV * dt; e.y += e.vy * dt; e.x += e.vx * dt; if (e.y > VIEW_H + 80) e.gone = true; continue; }
     if (e.dead) { e.deadT = (e.deadT || 0.5) - dt; if (e.deadT <= 0) e.gone = true; continue; }
     switch (e.type) {
