@@ -163,6 +163,8 @@ function drawTiles(g, L, cache, camX, bumps, t) {
 function drawPlayer(g, p, t) {
   if (p.inv > 0 && !p.dead && Math.floor(t * 20) % 2 === 0) return;
   const x = Math.round(p.x) - 3, y = Math.round(p.y), big = p.big;
+  const flip = p.facing < 0;
+  if (flip) { g.save(); g.translate(2 * Math.round(p.x) + 22, 0); g.scale(-1, 1); }
   const capH = big ? 8 : 6, faceH = big ? 12 : 9, torsoH = big ? 20 : 9, legH = p.h - capH - faceH - torsoH;
   let yy = y;
   g.fillStyle = '#d8261e'; g.fillRect(x + 5, yy, 17, capH); g.fillRect(x + 14, yy + capH - 3, 13, 3);
@@ -189,6 +191,7 @@ function drawPlayer(g, p, t) {
   if (run === 1) { lx = 11; rx = 13; } else if (run === 3) { lx = 4; rx = 19; } else if (run < 0) { lx = 3; rx = 19; }
   g.fillStyle = '#2e5fd8'; g.fillRect(x + lx, yy, 7, legH - 3); g.fillRect(x + rx, yy, 7, legH - 3);
   g.fillStyle = '#5a2a0a'; g.fillRect(x + lx - 1, yy + legH - 3, 9, 3); g.fillRect(x + rx, yy + legH - 3, 9, 3);
+  if (flip) g.restore();
 }
 
 function drawEnemy(g, e, t) {

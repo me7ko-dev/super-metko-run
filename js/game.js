@@ -2,14 +2,18 @@
 // Състояния, основен цикъл, HUD и управление.
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
-const input = { held: false, pressed: false };
+const input = { held: false, pressed: false, kLeft: false, kRight: false, tLeft: false, tRight: false };
 
-function loadBest() { try { return +localStorage.getItem('smr_best') || 0; } catch (e) { return 0; } }
+// Два режима: 'run' — тича сам (като Super Mario Run), 'classic' — ← → ходене напред и назад.
+const BEST_KEY = { run: 'smr_best', classic: 'smr_best_classic' };
+function loadBest(k) { try { return +localStorage.getItem(k) || 0; } catch (e) { return 0; } }
 function saveBest() {
-  if (G.score > G.best) { G.best = G.score; try { localStorage.setItem('smr_best', G.best); } catch (e) {} }
+  const m = G.mode;
+  if (G.score > G.bests[m]) { G.bests[m] = G.score; try { localStorage.setItem(BEST_KEY[m], G.score); } catch (e) {} }
 }
 
-const G = { state: 'title', levelIdx: 0, lives: 3, score: 0, coins: 0, best: loadBest(), t: 0, timer: 0,
+const G = { state: 'title', mode: 'run', sel: 'run', touch: false, levelIdx: 0, lives: 3, score: 0, coins: 0,
+            bests: { run: loadBest(BEST_KEY.run), classic: loadBest(BEST_KEY.classic) }, t: 0, timer: 0,
             L: null, tiles: null, p: null, ents: [], fx: [], bumps: [], camX: 0, combo: 0, time: 0,
             checkpoint: false, flagY: 0, flagPhase: '', prev: 'play' };
 window.__G = G;
@@ -20,19 +24,21 @@ function loadLevel(idx, fromCheckpoint) {
   G.ents = L.spawns.map(makeEntity).filter(Boolean);
   G.fx = []; G.bumps = []; G.combo = 0;
   const cp = fromCheckpoint && G.checkpoint;
-  G.p = makePlayer(cp ? L.checkpointX + 8 : 3 * T);
+  G.p = makePlayer(cp ? L.checkpointX + 8 : 3 * T, G.mode);
   if (cp) G.ents.forEach(e => { if (e.type === 'checkpoint') e.reached = true; if (e.x < L.checkpointX) e.gone = true; });
   G.ents = G.ents.filter(e => !e.gone);
-  G.time = L.cfg.time;
+  G.time = L.cfg.time + (G.mode === 'classic' ? 100 : 0);
   G.flagY = (GROUND - 11) * T + 10;
   updateCamera();
 }
 
 function updateCamera() {
-  G.camX = Math.max(0, Math.min(G.p.x - 260, G.L.cols * T - VIEW_W));
+  const lead = G.mode === 'classic' ? 420 : 260;
+  G.camX = Math.max(0, Math.min(G.p.x - lead, G.L.cols * T - VIEW_W));
 }
 
 function startGame() {
+  G.mode = G.sel;
   G.levelIdx = 0; G.lives = 3; G.score = 0; G.coins = 0; G.checkpoint = false;
   loadLevel(0, false);
   G.state = 'intro'; G.timer = 2.2;
@@ -58,7 +64,7 @@ function afterDeath() {
 function reachFlag() {
   const p = G.p, L = G.L;
   G.state = 'flag'; G.flagPhase = 'slide';
-  p.x = L.flagX - p.w - 1; p.vx = 0; p.vy = 0; p.jumping = false;
+  p.x = L.flagX - p.w - 1; p.vx = 0; p.vy = 0; p.jumping = false; p.facing = 1;
   const h = Math.max(0, (GROUND - 1) * T - (p.y + p.h));
   const bonus = h > 8 * T ? 5000 : h > 6 * T ? 2000 : h > 4 * T ? 800 : h > 2 * T ? 400 : 100;
   addScore(G, bonus, p.x + 30, p.y);
@@ -196,6 +202,22 @@ function drawHud() {
   txt(String(Math.ceil(G.time)).padStart(3, '0'), 760, y + 22, 14, G.time < 30 && G.state === 'play' ? '#ff6a5a' : '#fff');
 }
 
+const MODE_BOX = { run: { x: 225, y: 240, w: 230, h: 80 }, classic: { x: 505, y: 240, w: 230, h: 80 } };
+
+// Бутони на екрана за телефон в режим КЛАСИКА.
+function drawTouchPad() {
+  for (const [k, x] of [['left', 66], ['right', 196], ['jump', 885]]) {
+    const on = k === 'left' ? input.tLeft : k === 'right' ? input.tRight : input.held;
+    ctx.globalAlpha = on ? 0.55 : 0.28; ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(x, 472, 48, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.75; ctx.fillStyle = '#000'; ctx.beginPath();
+    if (k === 'left') { ctx.moveTo(x + 12, 452); ctx.lineTo(x - 16, 472); ctx.lineTo(x + 12, 492); }
+    else if (k === 'right') { ctx.moveTo(x - 12, 452); ctx.lineTo(x + 16, 472); ctx.lineTo(x - 12, 492); }
+    else { ctx.moveTo(x - 20, 486); ctx.lineTo(x, 456); ctx.lineTo(x + 20, 486); }
+    ctx.fill(); ctx.globalAlpha = 1;
+  }
+}
+
 function center(lines) {
   for (const [s, y, size, color] of lines) txt(s, VIEW_W / 2, y, size, color, 'center');
 }
@@ -206,13 +228,19 @@ function render() {
   const blink = Math.floor(G.t * 2.5) % 2 === 0;
   if (G.state === 'title') {
     renderWorld();
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    center([['СУПЕР МЕТКО', 110, 44, '#ffd23f'], ['РЪН', 172, 44, '#ff5a4a'],
-            ['Метко тича сам — ти само скачаш!', 262, 12],
-            ['SPACE / ↑ / тап = скок · задръж = по-високо', 290, 10, '#ddd'],
-            ['M = звук · P = пауза', 312, 10, '#ddd'],
-            [blink ? 'НАТИСНИ ЗА СТАРТ' : '', 370, 18],
-            ['РЕКОРД ' + String(G.best).padStart(7, '0'), 440, 12, '#ffd23f']]);
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    center([['СУПЕР МЕТКО', 56, 44, '#ffd23f'], ['РЪН', 116, 44, '#ff5a4a'], ['ИЗБЕРИ РЕЖИМ', 205, 12, '#ddd']]);
+    for (const m of ['run', 'classic']) {
+      const b = MODE_BOX[m], on = G.sel === m;
+      ctx.fillStyle = on ? 'rgba(255,210,63,.25)' : 'rgba(0,0,0,.45)'; ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = on ? '#ffd23f' : '#888'; ctx.lineWidth = on ? 4 : 2; ctx.strokeRect(b.x, b.y, b.w, b.h);
+      txt(m === 'run' ? 'РЪН' : 'КЛАСИКА', b.x + b.w / 2, b.y + 16, 18, on ? '#ffd23f' : '#fff', 'center');
+      txt(m === 'run' ? 'тича сам, ти скачаш' : 'ходиш напред и назад', b.x + b.w / 2, b.y + 50, 9, '#ddd', 'center');
+    }
+    center([[G.sel === 'run' ? 'SPACE / ↑ / тап = скок · задръж = по-високо' : 'СТРЕЛКИ / A D = ход · SPACE / ↑ = скок', 345, 10, '#ddd'],
+            ['СТРЕЛКИ = избор на режим · M = звук · P = пауза', 367, 10, '#ddd'],
+            [blink ? 'НАТИСНИ ЗА СТАРТ' : '', 405, 18],
+            ['РЕКОРД ' + String(G.bests[G.sel]).padStart(7, '0'), 460, 12, '#ffd23f']]);
     return;
   }
   if (G.state === 'intro' || G.state === 'gameover' || G.state === 'win') {
@@ -220,22 +248,23 @@ function render() {
     if (G.state === 'win') drawFx();
     drawHud();
     if (G.state === 'intro') {
-      center([['СВЯТ ' + G.L.cfg.name, 190, 26], [G.L.cfg.title, 240, 14, '#ffd23f']]);
+      center([['СВЯТ ' + G.L.cfg.name, 190, 26], [G.L.cfg.title, 240, 14, '#ffd23f'], [G.mode === 'classic' ? 'РЕЖИМ КЛАСИКА' : 'РЕЖИМ РЪН', 150, 10, '#aaa']]);
       drawPlayer(ctx, { x: 420, y: 300, w: 22, h: SMALL_H, big: false, inv: 0, onGround: true, runT: 0 }, G.t);
       txt('×  ' + G.lives, 470, 310, 18);
       if (G.checkpoint) center([['от контролната точка', 380, 10, '#7CFC7C']]);
     } else if (G.state === 'gameover') {
       center([['КРАЙ НА ИГРАТА', 200, 30, '#ff5a4a'], ['ТОЧКИ ' + G.score, 270, 16],
-              ['РЕКОРД ' + G.best, 305, 12, '#ffd23f'], [G.timer <= 0 && blink ? 'НАТИСНИ ЗА НОВ ОПИТ' : '', 380, 14]]);
+              ['РЕКОРД ' + G.bests[G.mode], 305, 12, '#ffd23f'], [G.timer <= 0 && blink ? 'НАТИСНИ ЗА НОВ ОПИТ' : '', 380, 14]]);
     } else {
       center([['ПОБЕДА!', 170, 40, '#ffd23f'], ['Метко превзе всички светове!', 245, 14],
-              ['ТОЧКИ ' + G.score, 290, 16], ['РЕКОРД ' + G.best, 325, 12, '#ffd23f'],
+              ['ТОЧКИ ' + G.score, 290, 16], ['РЕКОРД ' + G.bests[G.mode], 325, 12, '#ffd23f'],
               [G.timer <= 0 && blink ? 'НАТИСНИ ЗА НОВА ИГРА' : '', 400, 14]]);
     }
     return;
   }
   renderWorld();
   drawHud();
+  if (G.mode === 'classic' && G.touch && G.state !== 'dying') drawTouchPad();
   if (G.state === 'paused') {
     ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     center([['ПАУЗА', 230, 30], ['P / Esc за продължаване', 290, 12, '#ddd']]);
@@ -258,16 +287,68 @@ function togglePause() {
 }
 
 const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW', 'KeyZ', 'KeyX', 'Enter'];
+const LEFT_KEYS = ['ArrowLeft', 'KeyA'], RIGHT_KEYS = ['ArrowRight', 'KeyD'];
 addEventListener('keydown', e => {
   if (JUMP_KEYS.includes(e.code)) { e.preventDefault(); if (!e.repeat) press(); }
+  else if (LEFT_KEYS.includes(e.code) || RIGHT_KEYS.includes(e.code)) {
+    e.preventDefault();
+    const right = RIGHT_KEYS.includes(e.code);
+    if (G.state === 'title') G.sel = right ? 'classic' : 'run';
+    else if (right) input.kRight = true; else input.kLeft = true;
+  }
   else if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
   else if (e.code === 'KeyM') { Sound.init(); Sound.toggleMute(); }
 });
-addEventListener('keyup', e => { if (JUMP_KEYS.includes(e.code)) release(); });
-addEventListener('pointerdown', e => { e.preventDefault(); press(); }, { passive: false });
-addEventListener('pointerup', release);
-addEventListener('pointercancel', release);
-addEventListener('blur', () => { release(); if (G.state === 'play') togglePause(); });
+addEventListener('keyup', e => {
+  if (JUMP_KEYS.includes(e.code)) release();
+  else if (LEFT_KEYS.includes(e.code)) input.kLeft = false;
+  else if (RIGHT_KEYS.includes(e.code)) input.kRight = false;
+});
+
+// Тъч: в режим КЛАСИКА левите зони са ◀ ▶, останалото е скок. Всеки пръст се следи отделно.
+const pointers = new Map();
+function canvasPos(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * VIEW_W / r.width, y: (e.clientY - r.top) * VIEW_H / r.height };
+}
+function zone(pos) {
+  if (G.mode === 'classic' && G.state !== 'title') { if (pos.x < 132) return 'left'; if (pos.x < 262) return 'right'; }
+  return 'jump';
+}
+function titleHit(pos) {
+  for (const m in MODE_BOX) {
+    const b = MODE_BOX[m];
+    if (pos.x >= b.x && pos.x <= b.x + b.w && pos.y >= b.y && pos.y <= b.y + b.h) return m;
+  }
+  return null;
+}
+function refreshTouchDirs() {
+  const z = [...pointers.values()];
+  input.tLeft = z.includes('left'); input.tRight = z.includes('right');
+  if (!z.includes('jump')) input.held = false;
+}
+addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (e.pointerType === 'touch') G.touch = true;
+  const pos = canvasPos(e);
+  if (G.state === 'title') { Sound.init(); G.sel = titleHit(pos) || G.sel; startGame(); return; }
+  const z = zone(pos);
+  pointers.set(e.pointerId, z);
+  if (z === 'jump') press(); else refreshTouchDirs();
+}, { passive: false });
+addEventListener('pointermove', e => {
+  const old = pointers.get(e.pointerId);
+  if (!old || old === 'jump') return;
+  const z = zone(canvasPos(e));
+  if (z !== 'jump' && z !== old) { pointers.set(e.pointerId, z); refreshTouchDirs(); }
+});
+const pointerEnd = e => { pointers.delete(e.pointerId); refreshTouchDirs(); };
+addEventListener('pointerup', pointerEnd);
+addEventListener('pointercancel', pointerEnd);
+addEventListener('blur', () => {
+  pointers.clear(); release(); input.kLeft = input.kRight = input.tLeft = input.tRight = false;
+  if (G.state === 'play') togglePause();
+});
 document.addEventListener('contextmenu', e => e.preventDefault());
 
 function fit() {

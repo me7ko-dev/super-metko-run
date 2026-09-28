@@ -41,8 +41,9 @@ function moveBody(L, b, dt) {
   return res;
 }
 
-function makePlayer(x) {
-  return { x, y: GROUND * T - SMALL_H, w: 22, h: SMALL_H, vx: RUN * 0.6, vy: 0, big: false, onGround: true,
+function makePlayer(x, mode) {
+  return { x, y: GROUND * T - SMALL_H, w: 22, h: SMALL_H, vx: mode === 'classic' ? 0 : RUN * 0.6, vy: 0, facing: 1,
+           big: false, onGround: true,
            coyote: 0, jumpBuf: 0, jumpT: 0, jumping: false, inv: 0, runT: 0, dead: false, hidden: false };
 }
 
@@ -120,7 +121,14 @@ function bumpBlock(G, c, r) {
 
 function updatePlayer(G, dt, input) {
   const p = G.p, L = G.L;
-  p.vx = Math.min(RUN, p.vx + 900 * dt);
+  if (G.mode === 'classic') {
+    // Класика: ← → с ускорение и триене.
+    const dir = (input.kRight || input.tRight ? 1 : 0) - (input.kLeft || input.tLeft ? 1 : 0);
+    const target = dir * RUN, acc = p.onGround ? (dir ? 1100 : 1500) : 750;
+    if (p.vx < target) p.vx = Math.min(target, p.vx + acc * dt);
+    else if (p.vx > target) p.vx = Math.max(target, p.vx - acc * dt);
+    if (dir) p.facing = dir;
+  } else p.vx = Math.min(RUN, p.vx + 900 * dt);
   if (input.pressed) { p.jumpBuf = 0.13; input.pressed = false; }
   p.jumpBuf -= dt;
   p.coyote = p.onGround ? 0.09 : p.coyote - dt;
@@ -138,10 +146,14 @@ function updatePlayer(G, dt, input) {
   p.vy = Math.min(MAX_FALL, p.vy + g * dt);
   const res = moveBody(L, p, dt);
   p.onGround = res.ground;
-  if (p.onGround) { p.runT += dt; G.combo = 0; }
+  if (p.onGround) {
+    if (Math.abs(p.vx) > 8) p.runT += dt * Math.max(0.5, Math.abs(p.vx) / RUN); else p.runT = 0;
+    G.combo = 0;
+  }
   if (res.ceil) { bumpBlock(G, res.ceil[0], res.ceil[1]); p.jumping = false; }
-  // Авто-прескачане на препятствие, високо 1 плочка (като в Super Mario Run).
-  if (res.wall === 1 && p.onGround) {
+  if (res.wall && G.mode === 'classic') p.vx = 0;
+  // Авто-прескачане на препятствие, високо 1 плочка (като в Super Mario Run) — само в режим РЪН.
+  if (G.mode !== 'classic' && res.wall === 1 && p.onGround) {
     const c = Math.floor((p.x + p.w) / T), rFeet = Math.floor((p.y + p.h - 1) / T);
     if (!solidAt(L, c, rFeet - 1) && !(p.big && solidAt(L, c, rFeet - 2))) { p.vy = -500; p.onGround = false; }
   }
@@ -218,7 +230,7 @@ function playerVsEnemies(G, input) {
       G.combo++;
       addScore(G, 100 * Math.min(8, G.combo), e.x, e.y - 10);
       Sound.sfx.stomp();
-    } else if (e.type === 'walker') {
+    } else if (e.type === 'walker' && G.mode !== 'classic') {
       if (p.vy >= 0) { p.vy = -520; p.onGround = false; } // авто-прескачане на Кестенко
     } else hurt(G);
   }
