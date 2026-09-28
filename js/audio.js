@@ -5,7 +5,9 @@ const Sound = (() => {
   try { muted = localStorage.getItem('smr_muted') === '1'; } catch (e) {}
 
   function init() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    // iPhone: звукът се чува и при бутон „тихо“; след обаждане/излизане звукът е „прекъснат“ — пускаме го пак
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (ac) { if (ac.state !== 'running') ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ac = new AC();

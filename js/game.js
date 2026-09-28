@@ -204,6 +204,16 @@ function drawHud() {
 
 const MODE_BOX = { run: { x: 225, y: 240, w: 230, h: 80 }, classic: { x: 505, y: 240, w: 230, h: 80 } };
 
+// Телефон: пауза горе вдясно, а в паузата — бутон за звука.
+const PAUSE_BOX = { x: 900, y: 64, w: 48, h: 48 }, SOUND_BOX = { x: 340, y: 320, w: 280, h: 56 };
+const inBox = (p, b) => p.x >= b.x - 10 && p.x <= b.x + b.w + 10 && p.y >= b.y - 10 && p.y <= b.y + b.h + 10;
+function drawPauseBtn() {
+  const b = PAUSE_BOX;
+  ctx.globalAlpha = 0.35; ctx.fillStyle = '#000'; ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.globalAlpha = 0.85; ctx.fillStyle = '#fff'; ctx.fillRect(b.x + 14, b.y + 12, 7, 24); ctx.fillRect(b.x + 27, b.y + 12, 7, 24);
+  ctx.globalAlpha = 1;
+}
+
 // Бутони на екрана за телефон в режим КЛАСИКА.
 function drawTouchPad() {
   for (const [k, x] of [['left', 66], ['right', 196], ['jump', 885]]) {
@@ -265,9 +275,16 @@ function render() {
   renderWorld();
   drawHud();
   if (G.mode === 'classic' && G.touch && G.state !== 'dying') drawTouchPad();
+  if (G.touch && G.state === 'play') drawPauseBtn();
   if (G.state === 'paused') {
     ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    center([['ПАУЗА', 230, 30], ['P / Esc за продължаване', 290, 12, '#ddd']]);
+    center([['ПАУЗА', 200, 30], [G.touch ? 'Докосни за продължаване' : 'P / Esc за продължаване', 260, 12, '#ddd']]);
+    if (G.touch) {
+      const b = SOUND_BOX;
+      ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+      txt(Sound.isMuted() ? 'ЗВУК: ИЗКЛ' : 'ЗВУК: ВКЛ', VIEW_W / 2, b.y + 20, 14, '#ffd23f', 'center');
+    }
   }
   if (Sound.isMuted()) txt('🔇', VIEW_W - 44, VIEW_H - 40, 18);
 }
@@ -332,6 +349,8 @@ addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch') G.touch = true;
   const pos = canvasPos(e);
   if (G.state === 'title') { Sound.init(); G.sel = titleHit(pos) || G.sel; startGame(); return; }
+  if (G.state === 'paused') { Sound.init(); if (inBox(pos, SOUND_BOX)) Sound.toggleMute(); else togglePause(); return; }
+  if (G.state === 'play' && G.touch && inBox(pos, PAUSE_BOX)) { togglePause(); return; }
   const z = zone(pos);
   pointers.set(e.pointerId, z);
   if (z === 'jump') press(); else refreshTouchDirs();
@@ -345,10 +364,13 @@ addEventListener('pointermove', e => {
 const pointerEnd = e => { pointers.delete(e.pointerId); refreshTouchDirs(); };
 addEventListener('pointerup', pointerEnd);
 addEventListener('pointercancel', pointerEnd);
-addEventListener('blur', () => {
+// излизаш от играта (друго приложение, заключен екран) → пауза
+function lostFocus() {
   pointers.clear(); release(); input.kLeft = input.kRight = input.tLeft = input.tRight = false;
   if (G.state === 'play') togglePause();
-});
+}
+addEventListener('blur', lostFocus);
+document.addEventListener('visibilitychange', () => { if (document.hidden) lostFocus(); });
 document.addEventListener('contextmenu', e => e.preventDefault());
 
 function fit() {

@@ -2,16 +2,19 @@
 <html lang="bg">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>Супер Метко Рън</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
+  /* шрифтът е в папка fonts/ — играта работи и без интернет (Press Start 2P, SIL OFL) */
+  @font-face { font-family: 'Press Start 2P'; font-display: swap; src: url(fonts/press-start-2p-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'Press Start 2P'; font-display: swap; src: url(fonts/press-start-2p-cyrillic.woff2) format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   body { display: flex; align-items: center; justify-content: center; touch-action: none;
-         -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+         -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+         -webkit-touch-callout: none; -webkit-text-size-adjust: 100%; overscroll-behavior: none; }
   #rotate { display: none; position: fixed; left: 0; right: 0; top: 12%; text-align: center; color: #ffd23f;
             font: 12px/1.8 "Press Start 2P", monospace; pointer-events: none; }
   @media (orientation: portrait) and (max-width: 700px) { #rotate { display: block; } }
@@ -21,6 +24,7 @@
 <body>
 <div id="rotate">📱↻ Обърни телефона<br>хоризонтално</div>
 <canvas id="game" width="960" height="544"></canvas>
+<script>if (document.fonts) document.fonts.load('16px "Press Start 2P"', 'МЕТКО ABC');</script>
 <script src="js/audio.js"></script>
 <script src="js/level.js"></script>
 <script src="js/draw.js"></script>

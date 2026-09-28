@@ -1,2 +1,5 @@
 test/shots/
 node_modules/
+# събраните файлове за iPhone (прави ги mobile/prepare.mjs) и сглобяването
+www/
+build.log

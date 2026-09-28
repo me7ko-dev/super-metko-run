@@ -1,0 +1,12 @@
+{
+  "appId": "com.me7ko.metkorun",
+  "appName": "Метко Рън",
+  "webDir": "www",
+  "ios": {
+    "backgroundColor": "#000000",
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false,
+    "preferredContentMode": "mobile"
+  }
+}
